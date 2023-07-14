@@ -1,0 +1,79 @@
+img {
+  width: 25px;
+  height: 25px;
+}
+
+.col-fixed {
+  min-width: 100px;
+}
+
+/* Since we wanted to freeze the first two columns of `#board-table`, we had to
+   make the background opaque. To make the table borders follow the frozen
+   columns, we had to separate the borders and make sure they didn't double up
+   between cells (so not using `.table-bordered`). */
+#board-table {
+  --bs-table-bg: var(--bs-white);
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+#board-table > * > :first-child > :first-child {
+  /* First cell: full border */
+  border-width: 1px;
+}
+
+#board-table > * > :first-child > :not(:first-child) {
+  /* Cells in the first row: right, top, and bottom border */
+  border-width: 1px 1px 1px 0;
+}
+
+#board-table > * > :not(:first-child) > :first-child {
+  /* First cell of each row: left, right, and bottom border */
+  border-width: 0 1px 1px 1px;
+}
+
+#board-table > * > :not(:first-child) > :not(:first-child) {
+  /* All cells: right and bottom border */
+  border-width: 0 1px 1px 0;
+}
+
+.freeze-col {
+  position: sticky;
+  left: 0;
+  /* Increase the z-index so that other elements don't appear over the frozen
+       columns. */
+  z-index: 1000;
+}
+
+/* First column of board table */
+#board-table > tbody > tr > :first-child {
+  text-align: left;
+}
+
+.small-col {
+  width: 0;
+  white-space: nowrap;
+}
+
+/* Inspired by GitHub's default light theme code blocks */
+span.rule-arg {
+  border-radius: 6px;
+  background-color: rgb(175, 184, 193, 0.2);
+  color: black;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
+    Liberation Mono, monospace;
+  font-size: 90%;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.2em 0.4em;
+  white-space: break-spaces;
+  word-wrap: break-word;
+}
+
+input[type="text"] {
+  max-width: 120px;
+}
+
+input[type="number"] {
+  max-width: 85px;
+}
