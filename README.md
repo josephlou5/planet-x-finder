@@ -4,4 +4,4 @@
 
 A helper solver for the board game [The Search for Planet X][game link].
 
-[game link]: https://renegadegamestudios.com/the-search-for-planet-x/
+[game link]: https://searchforplanetx.com/
