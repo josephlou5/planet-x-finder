@@ -314,9 +314,10 @@ const ObjectCode = Object.freeze(
 const ObjectName = Object.freeze(
   ObjectType.createMapping((object) => object.replace(/_/g, " ").toTitleCase())
 );
-const objectDropdownOptions = ObjectType.values().map((object) => {
-  return { value: ObjectCode[object], label: ObjectName[object] };
-});
+const objectDropdownOptions = ObjectType.values().map((object) => ({
+  value: ObjectCode[object],
+  label: ObjectName[object],
+}));
 
 class SectorRule {
   static Type = makeEnumObj("SURVEY", "TARGET");
@@ -1236,19 +1237,90 @@ function* yieldGalaxies(counts, allRules = null) {
   yield* backtrack();
 }
 
-const MAX_TABLE_ROWS = 500;
+function getRulesKey() {
+  const mode = getSelected('input[name="game-mode"]');
+  if (mode == null) return "";
+  return (
+    mode +
+    ";" +
+    [...sectorRules, ...objectRules]
+      .map((rule) => rule.toString())
+      .sort()
+      .join(";")
+  );
+}
+
+function handleRuleChange() {
+  // check if the possibilities need to be calculated
+  const displayedRulesKey = (
+    $("#possibilities-body").attr("rules-key") ?? ""
+  ).trim();
+  const rulesKey = getRulesKey();
+  $("#calculate-possibilities-btn").toggleClass(
+    "d-none",
+    rulesKey === displayedRulesKey
+  );
+}
+
+function resetTable(numSectors) {
+  const $tableBody = $("#possibilities-body");
+  // clear the table
+  $tableBody.html("");
+
+  // fix the sectors and distributions rows to have the proper number of sectors
+  // sectors row
+  const $sectorsRow = $("#sectors-row");
+  let currNumSectors = 0;
+  $sectorsRow.children().forEach(($cell) => {
+    const sectorStr = $cell.attr("sector");
+    if (!sectorStr) return;
+    currNumSectors++;
+    const sector = Number(sectorStr);
+    $cell.toggleClass("d-none", !(sector <= numSectors));
+  });
+  if (currNumSectors < numSectors) {
+    $sectorsRow.append(
+      Array.fromRange(numSectors - currNumSectors, (index) => {
+        const sector = currNumSectors + index + 1;
+        return $(`<th>`, { scope: "col", sector }).text(`Sector ${sector}`);
+      })
+    );
+  }
+  // distributions row
+  const $distributionsRow = $("#distributions-row");
+  currNumSectors = 0;
+  $distributionsRow.children().forEach(($cell) => {
+    const sectorStr = $cell.attr("sector");
+    if (!sectorStr) return;
+    currNumSectors++;
+    const sector = Number(sectorStr);
+    $cell.toggleClass("d-none", !(sector <= numSectors));
+  });
+  if (currNumSectors < numSectors) {
+    $distributionsRow.append(
+      Array.fromRange(numSectors - currNumSectors, (index) => {
+        const sector = currNumSectors + index + 1;
+        return $("<th>", { scope: "col", sector });
+      })
+    );
+  }
+
+  return $tableBody;
+}
+
+const MAX_TABLE_ROWS = 100;
 const FOR_SURE_CLASS = "table-success";
 
 const cached = {};
-function handleRuleChange() {
+function calculatePossibilities() {
   // go through sector rules and get all possible configurations
   const mode = getSelected('input[name="game-mode"]');
   if (mode == null) return;
   const modeSettings = MODE_SETTINGS[mode];
+  const numSectors = modeSettings.numSectors;
 
-  // clear the table
-  const $tableBody = $("#possibilities-body");
-  $tableBody.html("");
+  const $tableBody = resetTable(numSectors);
+  // hide possibilities text
   $("#num-possibilities-text").addClass("d-none");
   // show spinner
   $("#possibilities-spinner").removeClass("d-none");
@@ -1260,7 +1332,7 @@ function handleRuleChange() {
   let first = true;
   const forSure = {};
   const bySector = Object.fromEntries(
-    Array.fromRange(modeSettings.numSectors, (index) => [index, {}])
+    Array.fromRange(numSectors, (index) => [index, {}])
   );
 
   function makePossibilityRow(index, objects, dynamic = false) {
@@ -1307,13 +1379,8 @@ function handleRuleChange() {
   let possibilities;
 
   const allRules = sectorRules.concat(objectRules);
-  const rulesKey =
-    mode +
-    ";" +
-    allRules
-      .map((rule) => rule.toString())
-      .sort()
-      .join(";");
+  const rulesKey = getRulesKey();
+  $tableBody.attr("rules-key", rulesKey);
   const cachedData = cached[rulesKey];
   if (cachedData != null) {
     const { total: cachedTotal, possibilities: cachedPossibilities } =
@@ -1383,26 +1450,33 @@ function handleRuleChange() {
     numPossibilitiesText = possibilities.length;
   }
   $("#num-possibilities-text")
-    .text(`Showing ${numPossibilitiesText} possibilities`)
+    .text(
+      `Showing ${numPossibilitiesText} possibilities ` +
+        `(${mode.toTitleCase()} Mode)`
+    )
     .removeClass("d-none");
   // update sector distributions
-  for (const [i, sectorObjects] of Object.entries(bySector)) {
-    $(`#distributions-row [sector=${Number(i) + 1}]`)
-      .html("")
-      .append(
-        Object.entries(sectorObjects)
-          // sort in decreasing order
-          .sort(([obj1, count1], [obj2, count2]) => -(count1 - count2))
-          .map(([obj, count]) => {
-            const percent = ((count / possibilities.length) * 100).toFixed(2);
-            return $("<div>").text(
-              `${ObjectName[obj]}: ${count} (${percent}%)`
-            );
-          })
-      );
+  if (possibilities.length === 1) {
+    $("#distributions-row [sector]").html("");
+  } else {
+    for (const [i, sectorObjects] of Object.entries(bySector)) {
+      $(`#distributions-row [sector=${Number(i) + 1}]`)
+        .html("")
+        .append(
+          Object.entries(sectorObjects)
+            // sort in decreasing order
+            .sort(([obj1, count1], [obj2, count2]) => -(count1 - count2))
+            .map(([obj, count]) => {
+              const percent = ((count / possibilities.length) * 100).toFixed(2);
+              return $("<div>").text(
+                `${ObjectName[obj]}: ${count} (${percent}%)`
+              );
+            })
+        );
+    }
   }
-  // hide spinner
-  $("#possibilities-spinner").addClass("d-none");
+  // hide spinner and calculate button
+  $("#possibilities-spinner,#calculate-possibilities-btn").addClass("d-none");
 }
 
 function convert(array) {
@@ -1440,56 +1514,7 @@ $(() => {
     }
     if (selectedMode == null) return;
     const numSectors = MODE_SETTINGS[selectedMode].numSectors;
-    // sectors row
-    const $sectorsRow = $("#sectors-row");
-    let currNumSectors = 0;
-    $sectorsRow.children().forEach(($cell) => {
-      const sectorStr = $cell.attr("sector");
-      if (!sectorStr) return;
-      currNumSectors++;
-      const sector = Number(sectorStr);
-      $cell.toggleClass("d-none", !(sector <= numSectors));
-    });
-    if (currNumSectors < numSectors) {
-      $sectorsRow.append(
-        Array.fromRange(numSectors - currNumSectors, (index) => {
-          const sector = currNumSectors + index + 1;
-          return $(`<th>`, { scope: "col", sector }).text(`Sector ${sector}`);
-          // .append(
-          //   // make this a tooltip
-          //   $("<span>", {
-          //     "class": "sector-distribution-tooltip",
-          //     "sector": sector,
-          //     "data-bs-toggle": "tooltip",
-          //     "data-bs-placement": "top",
-          //     "data-bs-html": "true",
-          //     "data-bs-title": "Distribution",
-          //   }).text(`Sector ${sector}`)
-          // );
-        })
-      );
-      $(".sector-distribution-tooltip").each((index, element) => {
-        new bootstrap.Tooltip(element);
-      });
-    }
-    // distributions row
-    const $distributionsRow = $("#distributions-row");
-    currNumSectors = 0;
-    $distributionsRow.children().forEach(($cell) => {
-      const sectorStr = $cell.attr("sector");
-      if (!sectorStr) return;
-      currNumSectors++;
-      const sector = Number(sectorStr);
-      $cell.toggleClass("d-none", !(sector <= numSectors));
-    });
-    if (currNumSectors < numSectors) {
-      $distributionsRow.append(
-        Array.fromRange(numSectors - currNumSectors, (index) => {
-          const sector = currNumSectors + index + 1;
-          return $("<th>", { scope: "col", sector });
-        })
-      );
-    }
+
     // disable sectors in dropdown
     $("#target-sector,#end-sector")
       .find("option:not([default])")
@@ -1498,7 +1523,7 @@ $(() => {
         const valid = 1 <= value && value <= numSectors;
         $option.prop("disabled", !valid);
       });
-    setTimeout(() => handleRuleChange(), 0);
+    handleRuleChange();
   });
 
   function makeRuleItem(rule, { ruleClass = null, allowDelete = false } = {}) {
@@ -1798,5 +1823,9 @@ $(() => {
     $("#is-not-is").prop("checked", true);
     $("#object-rule-type").val("").trigger("input");
     $("#add-object-rule :is(input,select)").trigger("reset");
+  });
+
+  $("#calculate-possibilities-btn").on("click", (event) => {
+    calculatePossibilities();
   });
 });

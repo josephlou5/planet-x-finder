@@ -40,7 +40,7 @@
       <div class="mb-2">
         <span class="h1">Planet X Finder</span>
         <span class="h6 fst-italic text-black text-opacity-50 ms-1">
-          (<a href="changelog.html" class="text-reset">v0.1</a>)
+          (<a href="changelog.html" class="text-reset">v0.2</a>)
         </span>
       </div>
 
@@ -93,18 +93,27 @@
 
         <div id="possibilities-row" class="row mb-2 d-none">
           <div class="col">
-            <div>
+            <div class="mb-2">
               <span class="h3">Possibilities</span>
               <div
                 id="possibilities-spinner"
-                class="spinner-border ms-2"
+                class="spinner-border ms-2 d-none"
                 role="status"
               >
                 <span class="visually-hidden">Loading...</span>
               </div>
             </div>
+            <div class="mb-2">
+              <button
+                type="button"
+                id="calculate-possibilities-btn"
+                class="btn btn-success"
+              >
+                Calculate Possibilities
+              </button>
+            </div>
             <div id="num-possibilities-text" class="d-none"></div>
-            <div class="table-responsive position-relative">
+            <div class="table-responsive">
               <table
                 id="possibilities-table"
                 class="table table-striped table-hover align-middle text-center text-nowrap"
